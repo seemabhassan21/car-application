@@ -1,0 +1,82 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh /app/start.sh
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+      - redis
+    ports:
+      - "5000:5000"
+    networks:
+      - carbase-net
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh /app/start-celery.sh
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - web
+      - redis
+      - mysql
+    networks:
+      - carbase-net
+
+  celery_beat:
+    container_name: beat
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    command: sh /app/beat-celery.sh
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - web
+      - redis
+      - mysql
+    networks:
+      - carbase-net
+
+  redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - carbase-net
+
+  mysql:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_DATABASE: carbase
+      MYSQL_USER: caruser
+      MYSQL_PASSWORD: carpass
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - carbase-net
+
+networks:
+  carbase-net:
+
+volumes:
+  mysql_data:
