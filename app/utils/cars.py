@@ -50,7 +50,7 @@ def get_car_by_details(make, model, year):
 def update_car(car_id, make=None, model=None, year=None):
     car = get_car_by_id(car_id)
     if not car:
-        return None, 
+        return None, "Car not found"
     
     if make is not None:
         car.make = make
@@ -72,7 +72,7 @@ def update_car(car_id, make=None, model=None, year=None):
 def delete_car(car_id):
     car = get_car_by_id(car_id)
     if not car:
-        return False, 
+        return False, "Car not found"
     try:
         db.session.delete(car)
         db.session.commit()

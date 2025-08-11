@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from app.extensions import db
 
+
 class Make(db.Model):
     __tablename__ = 'makes'
     id = db.Column(db.Integer, primary_key=True)
@@ -51,3 +52,4 @@ class Car(db.Model):
     @property
     def year(self):
         return self.car_model.year
+    
