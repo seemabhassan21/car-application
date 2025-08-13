@@ -30,5 +30,4 @@ class Config:
     CAR_API_HEADERS = {
         'X-Parse-Application-Id': get_env_var("CAR_API_ID"),
         'X-Parse-Master-Key': get_env_var("CAR_API_KEY")
-    }
-    
+    }    
