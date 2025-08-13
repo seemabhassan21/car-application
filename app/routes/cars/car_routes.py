@@ -1,74 +1,69 @@
-import logging
-from flask import request
 from flask_smorest import Blueprint
 from flask_jwt_extended import jwt_required
+from sqlalchemy import select
 
+from app.extensions import db
+from app.models.car import Car
 from app.routes.cars.car_schema import CarInputSchema, CarUpdateSchema, CarOutputSchema
-from app.utils.cars import (
-    create_car, get_all_cars, get_car_by_id,
-    update_car, delete_car
-)
+from app.routes.common.pagination import PaginationInputSchema, make_paginated_schema
+from app.utils.db_helper import get_or_404, paginate_query, commit_or_500
 from app.utils.auth import json_response
 
-car_bp = Blueprint("cars", __name__, url_prefix="/api/cars")
-logger = logging.getLogger(__name__)
+car_bp = Blueprint("cars", __name__)
+
+CarListResponseSchema = make_paginated_schema(CarOutputSchema)
+
 
 @car_bp.route("/", methods=["POST"])
 @car_bp.arguments(CarInputSchema)
 @car_bp.response(201, CarOutputSchema)
 @jwt_required()
-def create_car_route(data):
-    car, error = create_car(**data)
-    if error:
-        return json_response({"error": error}, 500)
-    return car
+def create_car(data):
+    car = Car(**data)
+    return commit_or_500(car, db.session)
+
 
 @car_bp.route("/", methods=["GET"])
-@car_bp.response(200, CarOutputSchema(many=True))
+@car_bp.arguments(PaginationInputSchema, location="query")
+@car_bp.response(200, CarListResponseSchema)
 @jwt_required()
-def list_cars():
-    page = request.args.get("page", default=1, type=int)
-    per_page = request.args.get("per_page", default=10, type=int)
+def list_cars(pagination):
+    query = select(Car)
+    return paginate_query(query, pagination["page"], pagination["per_page"])
 
-    result = get_all_cars(page=page, per_page=per_page)
-    return result["items"]
 
 @car_bp.route("/<int:car_id>", methods=["GET"])
 @car_bp.response(200, CarOutputSchema)
 @jwt_required()
-def get_car_route(car_id):
-    car = get_car_by_id(car_id)
-    if not car:
-        return json_response({"error": "Car not found"}, 404)
-    return car
+def get_car(car_id):
+    return get_or_404(Car, car_id)
+
 
 @car_bp.route("/<int:car_id>", methods=["PATCH"])
 @car_bp.arguments(CarUpdateSchema)
 @car_bp.response(200, CarOutputSchema)
 @jwt_required()
-def update_car_route(data, car_id):
-    car, error = update_car(car_id, **data)
-    if error:
-        code = 404 if "not found" in error.lower() else 500
-        return json_response({"error": error}, code)
-    return car
+def update_car_partial(data, car_id):
+    car = get_or_404(Car, car_id)
+    validated_data = CarUpdateSchema(partial=True).load(data)
+    db.session.query(Car).filter(Car.id == car_id).update(validated_data, synchronize_session="fetch")
+    return commit_or_500(db.session.get(Car, car_id), db.session)
+
 
 @car_bp.route("/<int:car_id>", methods=["PUT"])
 @car_bp.arguments(CarInputSchema)
 @car_bp.response(200, CarOutputSchema)
 @jwt_required()
-def replace_car_route(data, car_id):
-    car, error = update_car(car_id, **data)
-    if error:
-        code = 404 if "not found" in error.lower() else 500
-        return json_response({"error": error}, code)
-    return car
+def replace_car(data, car_id):
+    car = get_or_404(Car, car_id)
+    validated_data = CarInputSchema().load(data)
+    db.session.query(Car).filter(Car.id == car_id).update(validated_data, synchronize_session="fetch")
+    return commit_or_500(db.session.get(Car, car_id), db.session)
+
 
 @car_bp.route("/<int:car_id>", methods=["DELETE"])
 @jwt_required()
-def delete_car_route(car_id):
-    success, error = delete_car(car_id)
-    if not success:
-        code = 404 if "not found" in error.lower() else 500
-        return json_response({"error": error}, code)
-    return json_response({"message": "Car deleted"})
+def delete_car(car_id):
+    car = get_or_404(Car, car_id)
+    db.session.delete(car)
+    return commit_or_500(car, db.session)

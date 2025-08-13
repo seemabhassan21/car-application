@@ -1,336 +1,208 @@
-# CarBase API
+# Car Application
 
-A Flask-based backend API for managing car registration data. It fetches data from an external car API, stores it in a local SQLite database, and supports secure user authentication using JWT. Periodic syncing is handled by Celery and Redis.
+A Flask-based REST API for managing car registration data with a scalable architecture. The app uses Flask-Smorest for API documentation, fetches data from an external car API, stores it in MySQL, and supports secure JWT authentication. Background tasks are handled by Celery with Redis.
 
 ---
 
 ## Features
 
-- JWT-based user authentication (`/api/auth/signup`, `/api/auth/login`)
-- CRUD operations on car entries (`/api/cars`)
-- External car model API integration
-- Scheduled background syncing every 5 minutes (Celery Beat)
-- Token expiration & signature validation
-- SQLite3 database with SQLAlchemy ORM
-- Celery worker and beat for scheduled jobs
-- Dockerized with Redis for async tasks
-- Modular Flask project structure
+- Modern API Framework with Flask-Smorest and Swagger UI
+- JWT Authentication: `/api/auth/signup` & `/api/auth/login`
+- Full CRUD operations on cars: `/api/cars`
+- Normalized Database Schema: Makes, CarModels, Cars, Users
+- External API Integration for car data sync
+- Background Tasks with Celery
+- Periodic Data Sync with Celery Beat
+- Database Migrations with Flask-Migrate
+- Containerized Deployment with Docker Compose
+
+---
+
+## Tech Stack
+
+- **Backend:** Flask 3.1.1, Flask-Smorest  
+- **Database:** MySQL 8, SQLAlchemy ORM  
+- **Authentication:** Flask-JWT-Extended  
+- **Task Queue:** Celery 5.3.6, Redis  
+- **Validation:** Marshmallow  
+- **Containerization:** Docker & Docker Compose  
+- **Migration:** Flask-Migrate (Alembic)  
 
 ---
 
 ## API Endpoints
 
-| Method | Route                       | Auth | Description                |
-|--------|-----------------------------|------|----------------------------|
-| POST   | `/api/auth/signup`          | No   | Register a new user        |
-| POST   | `/api/auth/login`           | No   | Login and get JWT token    |
-| GET    | `/api/cars`                 | Yes  | List all cars (with filters)|
-| GET    | `/api/cars/<id>`            | Yes  | Get car by ID              |
-| POST   | `/api/cars`                 | Yes  | Create a new car           |
-| PATCH  | `/api/cars/<id>`            | Yes  | Update a car by ID         |
-| PUT    | `/api/cars/<id>`            | Yes  | Replace a car by ID        |
-| DELETE | `/api/cars/<id>`            | Yes  | Delete car by ID           |
-| POST   | `/api/cars/sync-cars`       | Yes  | Trigger background sync    |
+| Method | Route                  | Auth | Description             |
+|--------|-----------------------|------|-------------------------|
+| POST   | `/api/auth/signup`     | No   | Register a new user     |
+| POST   | `/api/auth/login`      | No   | Login & get JWT token   |
+| GET    | `/api/cars`            | Yes  | List all cars (paginated) |
+| GET    | `/api/cars/<id>`       | Yes  | Get car by ID           |
+| POST   | `/api/cars`            | Yes  | Create a new car        |
+| PATCH  | `/api/cars/<id>`       | Yes  | Update a car by ID      |
+| PUT    | `/api/cars/<id>`       | Yes  | Replace a car by ID     |
+| DELETE | `/api/cars/<id>`       | Yes  | Delete car by ID        |
 
-Filters supported on `/api/cars` via query params: `make`, `model`, `year`, `page`, `limit`.
-
-Example:
-```
-GET /api/cars?make=Toyota&year=2020&page=2&limit=20
-```
+**Swagger UI:** `http://localhost:5000/api/swagger-ui`  
 
 ---
 
-## Project Setup (Local)
+## Database Schema
 
-1. **Clone and create environment**
-   ```bash
-   git clone https://github.com/yourusername/carbase-api.git
-   cd carbase-api
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-2. **Create the .env file (required before first run)**
-   ```env
-   SECRET_KEY=your-secret-key
-   JWT_SECRET_KEY=your-jwt-secret
-   SQLALCHEMY_DATABASE_URI=sqlite:///instance/cars.db
-   CAR_API_ID=your-parse-app-id
-   CAR_API_KEY=your-parse-master-key
-   CELERY_BROKER_URL=redis://localhost:6379/0
-   CELERY_RESULT_BACKEND=redis://localhost:6379/0
-   ```
-   **Important:** Ensure these secrets are set explicitly. Otherwise, random values will be generated inside the container and invalidate tokens on every rebuild.
-3. **Ensure the instance directory exists**
-   ```bash
-   mkdir -p instance
-   chmod 777 instance
-   ```
-4. **Initialize the database**
-   ```bash
-   flask shell
-   >>> from app import db
-   >>> db.create_all()
-   >>> exit()
-   ```
-5. **Run services manually (non-Docker)**
-   - Redis:
-     ```bash
-     redis-server
-     ```
-   - Flask app:
-     ```bash
-     python run.py
-     ```
-   - Celery worker:
-     ```bash
-     celery -A run.celery worker --loglevel=info
-     ```
-   - Celery beat (optional, for periodic syncing):
-     ```bash
-     celery -A run.celery beat --loglevel=info
-     ```
+- **Makes:** Car manufacturers  
+- **CarModels:** Models with year & make relationship  
+- **Cars:** Individual car instances  
+- **Users:** Authentication  
 
 ---
 
-## Docker Setup
+## Setup (Local Development)
 
-1. **Create .env file (required before build)**
-   ```env
-   SECRET_KEY=your-secret-key
-   JWT_SECRET_KEY=your-jwt-secret
-   SQLALCHEMY_DATABASE_URI=sqlite:////app/instance/cars.db
-   CAR_API_ID=your-parse-app-id
-   CAR_API_KEY=your-parse-master-key
-   CELERY_BROKER_URL=redis://redis:6379/0
-   CELERY_RESULT_BACKEND=redis://redis:6379/0
-   ```
-   **Warning:** If JWT_SECRET_KEY is missing, the container will auto-generate a random key, invalidating all previously issued tokens. Always define it before running Docker!
-2. **Ensure the instance directory exists on your host**
-   ```bash
-   mkdir -p instance
-   chmod 777 instance
-   ```
-3. **Build and start all services**
-   ```bash
-   docker-compose up --build
-   ```
+### Prerequisites
+- Python 3.8+, MySQL 8.0+, Redis, Git  
 
----
-
-## Interact with the API
-
-Below are example requests for all major endpoints. Replace `<your_token>` with the JWT you receive after login.
-
-### Sign Up
+### Clone & Setup
 ```bash
-curl -X POST http://localhost:5000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"username": "user1", "email": "user@example.com", "password": "pass123"}'
-```
-
-### Login
-```bash
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "pass123"}'
-```
-
-### Get All Cars (with optional filters)
-```bash
-curl -X GET "http://localhost:5000/api/cars?make=Toyota&year=2021&page=1&limit=10" \
-  -H "Authorization: Bearer <your_token>"
-```
-
-### Get Car by ID
-```bash
-curl -X GET http://localhost:5000/api/cars/1 \
-  -H "Authorization: Bearer <your_token>"
-```
-
-### Create a New Car
-```bash
-curl -X POST http://localhost:5000/api/cars \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your_token>" \
-  -d '{"make": "Toyota", "model": "Corolla", "year": 2021}'
-```
-
-### Update a Car (PATCH)
-```bash
-curl -X PATCH http://localhost:5000/api/cars/1 \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your_token>" \
-  -d '{"model": "Camry"}'
-```
-
-### Replace a Car (PUT)
-```bash
-curl -X PUT http://localhost:5000/api/cars/1 \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your_token>" \
-  -d '{"make": "Honda", "model": "Civic", "year": 2022}'
-```
-
-### Delete a Car
-```bash
-curl -X DELETE http://localhost:5000/api/cars/1 \
-  -H "Authorization: Bearer <your_token>"
-```
-
-### Trigger Car Data Sync
-```bash
-curl -X POST http://localhost:5000/api/cars/sync-cars \
-  -H "Authorization: Bearer <your_token>"
-```
-
----
-
-## Authentication
-
-This project uses JWT-based authentication. Tokens must be included in the Authorization header as:
+git clone https://github.com/seemabhassan21/car-application.git
+cd car-application
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 
 ```
-Authorization: Bearer <your_jwt_token>
-```
 
-After registering or logging in, copy the token from the response and include it in every protected request.
+## Environment File
 
----
+Create `.env` with:
 
-## Periodic Syncing
-
-Every 5 minutes, Celery Beat triggers `sync_cars` to fetch car models from the external API and update the local DB.
-
-Check logs in:
-```
-logs/sync_cars.log
-```
-
----
-
-## Error Handling
-
-The API returns standard HTTP status codes with descriptive messages:
-- `400` – Bad Request (validation failed)
-- `401` – Unauthorized (missing or invalid token)
-- `404` – Not Found (car or route not found)
-- `409` – Conflict (duplicate car entry)
-- `500` – Server Error (unexpected failures)
-
----
-
-## Secret Management
-
-All sensitive configuration (secrets, database URIs, API keys) should be placed in a `.env` file and loaded automatically. Example:
-
-```
+```env
 SECRET_KEY=your-secret-key
 JWT_SECRET_KEY=your-jwt-secret
-SQLALCHEMY_DATABASE_URI=sqlite:///instance/cars.db
+SQLALCHEMY_DATABASE_URI=mysql+pymysql://caruser:carpass@localhost:3306/carbase
 CAR_API_ID=your-parse-app-id
 CAR_API_KEY=your-parse-master-key
+CAR_API_URL=https://parseapi.back4app.com/classes/Car_Model_List?limit=10000
 CELERY_BROKER_URL=redis://localhost:6379/0
 CELERY_RESULT_BACKEND=redis://localhost:6379/0
 ```
 
----
+
+## Database Setup
+
+```bash
+mysql -u root -p
+CREATE DATABASE carbase;
+CREATE USER 'caruser'@'localhost' IDENTIFIED BY 'carpass';
+GRANT ALL PRIVILEGES ON carbase.* TO 'caruser'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+
+flask db upgrade
+```
+
+## Start Services
+
+```bash
+# Terminal 1: Redis
+redis-server
+
+# Terminal 2: Flask app
+python run.py
+
+# Terminal 3: Celery worker
+celery -A app.tasks.celery_worker.celery worker --loglevel=info
+
+# Terminal 4 (optional): Celery beat
+celery -A app.tasks.celery_worker.celery beat --loglevel=info
+
+
+## Docker Setup
+
+Create `.env` for Docker (update hostnames for containers):
+
+```env
+SQLALCHEMY_DATABASE_URI=mysql+pymysql://caruser:carpass@mysql:3306/carbase
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/0
+```
+
+
+### Start services:
+```
+docker-compose up --build
+
+```
+
+### Car Management Examples
+## List Cars
+```
+curl -X GET "http://localhost:5000/api/cars?page=1&per_page=10" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+  ```
+## Create / Update / Delete
+```
+curl -X POST / PATCH / PUT / DELETE ... \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -d '{...}'
+  ```
+Use /api/cars routes with the JWT token in the Authorization header.
 
 ## Project Structure
 
-```
-carbase-api/
-├── app/
-│   ├── __init__.py
+car-application/
+├── app
 │   ├── config.py
 │   ├── extensions.py
-│   ├── models.py
-│   ├── routes/
+│   ├── __init__.py
+│   ├── models
+│   │   ├── car.py
 │   │   ├── __init__.py
-│   │   ├── auth/
-│   │   │   ├── __init__.py
-│   │   │   ├── auth_routes.py
-│   │   │   └── user_schema.py
-│   │   └── cars/
-│   │       ├── __init__.py
-│   │       ├── car_routes.py
-│   │       └── car_schema.py
-│   ├── tasks/
+│   │   └── user.py
+│   ├── routes
+│   │   ├── auth
+│   │   ├── cars
+│   │   ├── common
+│   │   └── __init__.py
+│   ├── tasks
+│   │   ├── celery_worker.py
+│   │   ├── __init__.py
 │   │   └── sync_cars.py
-│   ├── utils/
-│   │   └── auth.py
-├── instance/
-│   └── cars.db
-├── logs/
-│   └── sync_cars.log
-├── run.py
-├── Dockerfile
+│   └── utils
+│       ├── auth.py
+│       ├── db_helper.py
+│       └── __init__.py
+├── beat-celery.sh
 ├── docker-compose.yml
+├── Dockerfile
+├── migrations
+│   ├── alembic.ini
+│   ├── env.py
+│   ├── README
+│   ├── script.py.mako
+│   └── versions
+├── README.md
 ├── requirements.txt
-├── .env
-└── README.md
-```
+├── run.py
+├── start-celery.sh
+└── start.sh
 
-### Folder and File Explanations
+## Background Tasks
+sync_cars: Updates DB from external API
 
-- `app/` - Main application package.
-  - `__init__.py` - Initializes the Flask app and extensions.
-  - `config.py` - Configuration settings and environment variable loading.
-  - `extensions.py` - Initializes Flask extensions (e.g., SQLAlchemy, JWT).
-  - `models.py` - SQLAlchemy models for users and cars.
-  - `routes/` - Contains all route blueprints.
-    - `auth/` - Authentication endpoints and schemas.
-      - `auth_routes.py` - Signup and login logic.
-      - `user_schema.py` - Marshmallow schemas for user validation.
-    - `cars/` - Car endpoints and schemas.
-      - `car_routes.py` - CRUD and sync endpoints for cars.
-      - `car_schema.py` - Marshmallow schemas for car validation.
-  - `tasks/` - Celery background tasks.
-    - `sync_cars.py` - Task for syncing car data from the external API.
-  - `utils/` - Utility functions (e.g., authentication helpers).
-    - `auth.py` - Password hashing and JWT helpers.
-- `instance/` - Stores the SQLite database file and can hold instance-specific configs.
-- `logs/` - Stores log files, such as `sync_cars.log` for background sync jobs.
-- `run.py` - Entry point to start the Flask app.
-- `Dockerfile` - Docker image build instructions.
-- `docker-compose.yml` - Multi-container orchestration for Flask, Celery, and Redis.
-- `requirements.txt` - Python dependencies.
-- `.env` - Environment variables (not committed to version control).
-- `README.md` - Project documentation.
+Scheduled tasks via Celery Beat
 
----
+## Manual execution:
 
-## Testing JWT
 
-You can use [jwt.io](https://jwt.io/) to decode JWTs, but you must paste your JWT_SECRET_KEY under the "Verify Signature" section to validate it.
+celery -A app.tasks.celery_worker.celery call app.tasks.sync_cars.sync_cars
 
----
 
-## Cleanup & Rebuild (Docker)
+### Authentication
+JWT tokens for protected routes
 
-To completely reset:
+Password hashing with Werkzeug
 
-```bash
-docker-compose down -v
-docker system prune -af
-rm -rf instance/*.db
-rm -rf logs/*
-docker-compose up --build
-```
+Include token in Authorization: Bearer <your_jwt_token> header
 
----
 
-## Maintainers
-
-Seemab Hassan – Backend Intern
-
-Project designed to demonstrate Flask + Celery + Docker integration with a clean modular codebase.
-
----
-
-## Notes
-
-- Don’t forget to map ports: 5000 (Flask) and 6379 (Redis)
-- SQLite file and .env are persisted via volumes
-- Secret keys must remain consistent across container rebuilds

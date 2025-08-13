@@ -11,8 +11,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
     ports:
       - "5000:5000"
     networks:
@@ -28,9 +30,12 @@ services:
     env_file:
       - .env
     depends_on:
-      - web
-      - redis
-      - mysql
+      web:
+        condition: service_started
+      redis:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     networks:
       - carbase-net
 
@@ -46,9 +51,12 @@ services:
     env_file:
       - .env
     depends_on:
-      - web
-      - redis
-      - mysql
+      web:
+        condition: service_started
+      redis:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     networks:
       - carbase-net
 
@@ -68,6 +76,11 @@ services:
       MYSQL_USER: caruser
       MYSQL_PASSWORD: carpass
       MYSQL_ROOT_PASSWORD: rootpass
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "3306:3306"
     volumes:

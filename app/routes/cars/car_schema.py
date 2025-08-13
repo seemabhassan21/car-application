@@ -53,11 +53,13 @@ class CarOutputSchema(Schema):
         unknown = EXCLUDE
 
     id = fields.Int()
-    car_model_info = fields.Nested(CarModelOutputSchema)
+    # Map to the relationship attribute 'car_model'
+    car_model_info = fields.Nested(CarModelOutputSchema, attribute="car_model")
     created_at = fields.DateTime()
     full_name = fields.Str()
-    make = fields.Str()
-    model = fields.Str()
+    # Map to computed properties on the model
+    make = fields.Str(attribute="make_name")
+    model = fields.Str(attribute="model_name")
     year = fields.Int()
 
 

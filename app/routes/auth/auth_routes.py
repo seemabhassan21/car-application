@@ -2,13 +2,13 @@ import logging
 from flask_smorest import Blueprint
 from flask_jwt_extended import create_access_token
 
+from app import db
 from app.models.user import User
 from app.routes.auth.user_schema import UserSchema, LoginSchema
-from app.utils.auth import get_user_by_email, commit_instance, json_response
+from app.utils.auth import get_user_by_email, json_response
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
-
 @auth_bp.route('/signup', methods=['POST'])
 @auth_bp.arguments(UserSchema)
 @auth_bp.response(201, description="User created successfully")
@@ -19,17 +19,21 @@ def signup(data):
 
     user = User(
         username=data['username'],
-        email=data['email'],
-        password=data['password'] 
+        email=data['email']
     )
+    user.password = data['password']
 
-    success, error = commit_instance(user)
-    if success:
+    try:
+        db.session.add(user)
+        db.session.commit()
         logger.info(f"New user created: {data['email']}")
         return json_response({"message": "User created successfully"})
-    
-    logger.error(f"Signup failed for {data['email']} — {error}")
-    return json_response({"error": "Internal server error"}, 500)
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Signup failed for {data['email']} — {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
 
 @auth_bp.route('/login', methods=['POST'])
 @auth_bp.arguments(LoginSchema)

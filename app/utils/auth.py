@@ -12,16 +12,6 @@ def get_user_by_email(email: str):
         logger.exception(f"Error fetching user by email: {email} — {e}")
         return None
 
-def commit_instance(instance=None):
-    try:
-        if instance:
-            db.session.add(instance)
-        db.session.commit()
-        return True, None
-    except Exception as e:
-        db.session.rollback()
-        logger.exception(f"Database commit failed — {e}")
-        return False, str(e)
 
 def json_response(payload, status=200):
     return jsonify(payload), status

@@ -13,4 +13,4 @@ redis==5.0.4
 celery==5.3.6
 cryptography==42.0.5
 requests==2.32.4
-werkzeug==2.0.0
+Werkzeug>=3.1.0
