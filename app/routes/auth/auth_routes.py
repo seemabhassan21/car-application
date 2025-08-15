@@ -9,10 +9,13 @@ from app.utils.auth import get_user_by_email, json_response
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
+
+
 @auth_bp.route('/signup', methods=['POST'])
 @auth_bp.arguments(UserSchema)
 @auth_bp.response(201, description="User created successfully")
 def signup(data):
+    """Handle user signup."""
     if get_user_by_email(data['email']):
         logger.info(f"Signup blocked — email exists: {data['email']}")
         return json_response({"error": "Email already exists"}, 409)
@@ -34,16 +37,16 @@ def signup(data):
         return json_response({"error": "Internal server error"}, 500)
 
 
-
 @auth_bp.route('/login', methods=['POST'])
 @auth_bp.arguments(LoginSchema)
 @auth_bp.response(200, description="Login successful")
 def login(data):
+    """Handle user login and JWT token creation."""
     user = get_user_by_email(data['email'])
     if user and user.check_password(data['password']):
         logger.info(f"User login successful: {data['email']}")
         token = create_access_token(identity=str(user.id))
         return json_response({"access_token": token})
-    
+
     logger.warning(f"Invalid login attempt: {data['email']}")
     return json_response({"error": "Invalid credentials"}, 401)

@@ -5,11 +5,13 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
-def get_user_by_email(email: str):
+
+def get_user_by_email(email: str, session=None):
+    sess = session or db.session
     try:
-        return db.session.query(User).filter_by(email=email.lower()).first()
-    except Exception as e:
-        logger.exception(f"Error fetching user by email: {email} — {e}")
+        return sess.query(User).filter_by(email=email.lower()).first()
+    except Exception:
+        logger.exception("Error fetching user by email: %s", email)
         return None
 
 

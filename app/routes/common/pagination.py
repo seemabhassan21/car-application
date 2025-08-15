@@ -1,5 +1,7 @@
-from marshmallow import Schema, fields, EXCLUDE, validate
 from typing import Type
+
+from marshmallow import Schema, fields, EXCLUDE, validate
+
 
 class PaginationInputSchema(Schema):
     page = fields.Int(
@@ -20,8 +22,14 @@ class PaginationMetaSchema(Schema):
 
     page = fields.Int(required=True)
     per_page = fields.Int(required=True)
-    total = fields.Int(required=True, metadata={"description": "Total items"})
-    pages = fields.Int(required=True, metadata={"description": "Total pages"})
+    total = fields.Int(
+        required=True,
+        metadata={"description": "Total items"}
+    )
+    pages = fields.Int(
+        required=True,
+        metadata={"description": "Total pages"}
+    )
 
 
 class PaginatedResponseSchema(Schema):
@@ -33,9 +41,14 @@ class PaginatedResponseSchema(Schema):
 
 
 def make_paginated_schema(item_schema_cls: Type[Schema]) -> Type[Schema]:
-  
+    """Generate a paginated schema class for a specific item schema."""
     class _TypedPaginatedSchema(PaginatedResponseSchema):
-        items = fields.List(fields.Nested(item_schema_cls), required=True)
+        items = fields.List(
+            fields.Nested(item_schema_cls),
+            required=True
+        )
 
-    _TypedPaginatedSchema.__name__ = f"Paginated{item_schema_cls.__name__}List"
+    _TypedPaginatedSchema.__name__ = (
+        f"Paginated{item_schema_cls.__name__}List"
+    )
     return _TypedPaginatedSchema

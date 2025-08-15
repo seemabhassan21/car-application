@@ -1,5 +1,6 @@
-from marshmallow import Schema, fields, validate, EXCLUDE
 from datetime import datetime
+
+from marshmallow import Schema, fields, validate, EXCLUDE
 
 NAME_VALIDATOR = validate.Length(min=5, max=100)
 YEAR_VALIDATOR = validate.Range(min=2000, max=datetime.now().year + 1)
@@ -13,13 +14,11 @@ class MakeInputSchema(Schema):
 
 
 class MakeOutputSchema(Schema):
-    """Output schema for Make"""
     class Meta:
         unknown = EXCLUDE
 
     id = fields.Int()
     name = fields.Str()
-
 
 
 class CarModelInputSchema(Schema):
@@ -53,10 +52,12 @@ class CarOutputSchema(Schema):
         unknown = EXCLUDE
 
     id = fields.Int()
-    car_model_info = fields.Nested(CarModelOutputSchema, attribute="car_model")
+    car_model_info = fields.Nested(
+        CarModelOutputSchema, attribute="car_model"
+    ) 
     created_at = fields.DateTime()
     full_name = fields.Str()
-    make = fields.Str(attribute="make_name")
+    make = fields.Str(attribute="make_name")  
     model = fields.Str(attribute="model_name")
     year = fields.Int()
 

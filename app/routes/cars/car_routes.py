@@ -4,10 +4,17 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models.car import Car
-from app.routes.cars.car_schema import CarInputSchema, CarUpdateSchema, CarOutputSchema
-from app.routes.common.pagination import PaginationInputSchema, make_paginated_schema
-from app.utils.db_helper import get_or_404, paginate_query, commit_or_500
+from app.routes.cars.car_schema import (
+    CarInputSchema,
+    CarUpdateSchema,
+    CarOutputSchema,
+)
+from app.routes.common.pagination import (
+    PaginationInputSchema,
+    make_paginated_schema,
+)
 from app.utils.auth import json_response
+from app.utils.db_helper import commit_or_500, get_or_404, paginate_query
 
 car_bp = Blueprint("cars", __name__)
 
@@ -44,9 +51,12 @@ def get_car(car_id):
 @car_bp.response(200, CarOutputSchema)
 @jwt_required()
 def update_car_partial(data, car_id):
-    car = get_or_404(Car, car_id)
+    get_or_404(Car, car_id)
     validated_data = CarUpdateSchema(partial=True).load(data)
-    db.session.query(Car).filter(Car.id == car_id).update(validated_data, synchronize_session="fetch")
+    db.session.query(Car).filter(Car.id == car_id).update(
+        validated_data,
+        synchronize_session="fetch",
+    )
     return commit_or_500(db.session.get(Car, car_id), db.session)
 
 
@@ -55,9 +65,12 @@ def update_car_partial(data, car_id):
 @car_bp.response(200, CarOutputSchema)
 @jwt_required()
 def replace_car(data, car_id):
-    car = get_or_404(Car, car_id)
+    get_or_404(Car, car_id)
     validated_data = CarInputSchema().load(data)
-    db.session.query(Car).filter(Car.id == car_id).update(validated_data, synchronize_session="fetch")
+    db.session.query(Car).filter(Car.id == car_id).update(
+        validated_data,
+        synchronize_session="fetch",
+    )
     return commit_or_500(db.session.get(Car, car_id), db.session)
 
 

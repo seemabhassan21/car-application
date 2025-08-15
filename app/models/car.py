@@ -1,13 +1,21 @@
 from datetime import datetime, timezone
+
+from sqlalchemy.sql import func
+
 from app.extensions import db
 
 
 class Make(db.Model):
     __tablename__ = 'makes'
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True, index=True)
-
-    car_models = db.relationship('CarModel', backref='make', lazy='selectin', cascade='all, delete-orphan')
+    car_models = db.relationship(
+        'CarModel',
+        back_populates='make',
+        lazy='selectin',
+        cascade='all, delete-orphan'
+    )
 
 
 class CarModel(db.Model):
@@ -16,9 +24,20 @@ class CarModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, index=True)
     year = db.Column(db.Integer, nullable=False, index=True)
-    make_id = db.Column(db.Integer, db.ForeignKey('makes.id'), nullable=False, index=True)
+    make_id = db.Column(
+        db.Integer,
+        db.ForeignKey('makes.id'),
+        nullable=False,
+        index=True
+    )
 
-    cars = db.relationship('Car', backref='car_model', lazy='selectin', cascade='all, delete-orphan')
+    make = db.relationship('Make', back_populates='car_models', lazy='selectin')
+    cars = db.relationship(
+        'Car',
+        back_populates='car_model',
+        lazy='selectin',
+        cascade='all, delete-orphan'
+    )
 
     __table_args__ = (
         db.UniqueConstraint('name', 'year', 'make_id', name='uq_model_year_make'),
@@ -34,8 +53,19 @@ class Car(db.Model):
     __tablename__ = 'cars'
 
     id = db.Column(db.Integer, primary_key=True)
-    car_model_id = db.Column(db.Integer, db.ForeignKey('car_models.id'), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    car_model_id = db.Column(
+        db.Integer,
+        db.ForeignKey('car_models.id'),
+        nullable=False,
+        index=True
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    car_model = db.relationship('CarModel', back_populates='cars', lazy='selectin')
 
     @property
     def full_name(self):
@@ -52,4 +82,3 @@ class Car(db.Model):
     @property
     def year(self):
         return self.car_model.year
-    

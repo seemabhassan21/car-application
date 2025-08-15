@@ -1,72 +1,56 @@
-import os
-import json
+import logging
 import requests
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-from app.models import Car, Make, CarModel
+from app.models.car import Car
+from app.config import Config
 from app.tasks.celery_worker import celery
-from dotenv import load_dotenv
-load_dotenv() 
+from sqlalchemy.orm import Session
 
-CAR_API_URL = os.getenv("CAR_API_URL")
-CAR_API_HEADERS = json.loads(os.getenv("CAR_API_HEADERS", "{}"))
-DATABASE_URL = os.environ.get("SQLALCHEMY_DATABASE_URI")
+logger = logging.getLogger(__name__)
 
-engine = create_engine(DATABASE_URL)
-Session = scoped_session(sessionmaker(bind=engine))
 
-@celery.task(name="app.tasks.sync_cars.sync_cars")
-def sync_cars():
-    session = Session()
-    total_saved = 0
-
-    for year in range(2012, 2023):
-        try:
-            query = json.dumps({"Year": year})
-            response = requests.get(CAR_API_URL, headers=CAR_API_HEADERS, params={"where": query})
-
-            if response.status_code != 200:
-                print(f"Failed to fetch data for year {year}: {response.status_code}")
-                continue
-
-            cars = response.json().get('results', [])
-
-            for c in cars:
-                make = session.query(Make).filter_by(name=c['Make']).first()
-                if not make:
-                    make = Make(name=c['Make'])
-                    session.add(make)
-                    session.flush()  
-
-                car_model = session.query(CarModel).filter_by(
-                    name=c['Model'],
-                    year=c['Year'],
-                    make_id=make.id
-                ).first()
-                if not car_model:
-                    car_model = CarModel(
-                        name=c['Model'],
-                        year=c['Year'],
-                        make_id=make.id
-                    )
-                    session.add(car_model)
-                    session.flush()
-
-                if not session.query(Car).filter_by(car_model_id=car_model.id).first():
-                    car = Car(car_model_id=car_model.id)
-                    session.add(car)
-                    total_saved += 1
-
-        except Exception as e:
-            print(f"Error syncing year {year}: {str(e)}")
-            session.rollback()
-
+def fetch_cars_by_year(year):
     try:
-        if total_saved > 0:
-            session.commit()
-        print(f"Sync complete: {total_saved} new cars added.")
+        response = requests.get(
+            Config.CAR_API_URL,
+            headers=Config.CAR_API_HEADERS,
+            params={"year": year},
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json().get("results", [])
     except Exception as e:
-        print(f"Failed to commit changes: {str(e)}")
-        session.rollback()
-    finally:
-        session.close()
+        logger.error("Error fetching cars for %s: %s", year, e)
+        return []
+
+
+def sync_cars_for_year(year, SessionLocal):
+    cars_data = fetch_cars_by_year(year)
+    if not cars_data:
+        logger.warning("No data returned for %s", year)
+        return 0
+
+    inserted_count = 0
+    with SessionLocal() as session:
+        try:
+            for car in cars_data:
+                if not session.query(Car).filter_by(objectId=car["objectId"]).first():
+                    session.add(Car(**car))
+                    inserted_count += 1
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.exception("DB error inserting cars for %s: %s", year, e)
+
+    logger.info("Inserted %d cars for %s", inserted_count, year)
+    return inserted_count
+
+
+@celery.task
+def sync_all_cars():
+    from app.tasks.celery_worker import SessionLocal
+
+    inserted_total = 0
+    for year in range(2000, 2025):
+        inserted_total += sync_cars_for_year(year, SessionLocal)
+    logger.info("Total cars inserted: %d", inserted_total)
+    return inserted_total

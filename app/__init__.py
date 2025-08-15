@@ -1,9 +1,10 @@
 from flask import Flask
-from flask_smorest import Api 
+from flask_smorest import Api
 
 from app.config import Config
 from app.extensions import db, jwt, ma, migrate
 from app.routes import all_blueprints
+
 
 def create_app():
     app = Flask(__name__)
@@ -14,9 +15,9 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
-    from app import models
+    from app import models  # Ensure models are loaded before migrations
 
-    api = Api(app)  
+    api = Api(app)
     for bp, prefix in all_blueprints:
         api.register_blueprint(bp, url_prefix=prefix)
 
