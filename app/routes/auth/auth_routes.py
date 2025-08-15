@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 @auth_bp.arguments(UserSchema)
 @auth_bp.response(201, description="User created successfully")
 def signup(data):
-    """Handle user signup."""
     if get_user_by_email(data['email']):
         logger.info(f"Signup blocked — email exists: {data['email']}")
         return json_response({"error": "Email already exists"}, 409)
@@ -41,7 +40,6 @@ def signup(data):
 @auth_bp.arguments(LoginSchema)
 @auth_bp.response(200, description="Login successful")
 def login(data):
-    """Handle user login and JWT token creation."""
     user = get_user_by_email(data['email'])
     if user and user.check_password(data['password']):
         logger.info(f"User login successful: {data['email']}")
