@@ -1,0 +1,16 @@
+Flask==3.1.1
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+Flask-JWT-Extended==4.7.1
+Flask-Marshmallow==0.14.0
+Flask-Smorest==0.46.1
+SQLAlchemy==2.0.42
+marshmallow>=3.24.1,<4
+marshmallow-sqlalchemy==0.29.0
+PyMySQL==1.1.1
+python-dotenv==1.0.1
+redis==5.0.4
+celery==5.3.6
+cryptography==42.0.5
+requests==2.32.4
+Werkzeug>=3.1.0
