@@ -12,17 +12,15 @@ dist/
 *.egg-info/
 *.egg
 
-# Flask stuff
+# Logs
 *.log
 
-# Sphinx documentation
-docs/_build/
+# Celery
+celerybeat-schedule
+*.pid
 
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
+# Database
+*.db
 
 # Environments
 .env
@@ -33,12 +31,14 @@ env/
 env.bak/
 venv.bak/
 
+# Docker
+docker-compose.override.yml
+*.dockerignore
+
 # VS Code
 .vscode/
+*.code-workspace
 
-# Docker
-*.pid
-
-# OS system files
+# MacOS / Windows
 .DS_Store
 Thumbs.db

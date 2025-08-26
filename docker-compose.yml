@@ -2,94 +2,106 @@ version: "3.9"
 
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
+    container_name: carapp_web
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: sh /app/start.sh
     volumes:
-      - .:/app
-    env_file:
-      - .env
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    ports:
-      - "5000:5000"
-    networks:
-      - carbase-net
-
-  celery_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: sh /app/start-celery.sh
-    volumes:
-      - .:/app
-    env_file:
-      - .env
-    depends_on:
-      web:
-        condition: service_started
-      redis:
-        condition: service_started
-      mysql:
-        condition: service_healthy
-    networks:
-      - carbase-net
-
-  celery_beat:
-    container_name: beat
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: always
-    command: sh /app/beat-celery.sh
-    volumes:
-      - .:/app
-    env_file:
-      - .env
-    depends_on:
-      web:
-        condition: service_started
-      redis:
-        condition: service_started
-      mysql:
-        condition: service_healthy
-    networks:
-      - carbase-net
-
-  redis:
-    image: redis:7
-    restart: always
-    ports:
-      - "6379:6379"
-    networks:
-      - carbase-net
-
-  mysql:
-    image: mysql:8
-    restart: always
-    environment:
-      MYSQL_DATABASE: carbase
-      MYSQL_USER: caruser
-      MYSQL_PASSWORD: carpass
-      MYSQL_ROOT_PASSWORD: rootpass
+      - ./migrations:/app/migrations 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpass"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      DB_HOST: db   
+
+  worker:
+    build: .
+    container_name: carapp_worker
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh /app/celery_worker.sh
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      DB_HOST: db
+
+  beat:
+    build: .
+    container_name: carapp_beat
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh /app/celery_beat.sh
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      DB_HOST: db
+
+  db:
+    image: mysql:8.0
+    container_name: carapp_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
     networks:
-      - carbase-net
+      - backend
 
-networks:
-  carbase-net:
+  redis:
+    image: redis:7
+    container_name: carapp_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - backend
 
 volumes:
   mysql_data:
+
+networks:
+  backend:
+    driver: bridge
