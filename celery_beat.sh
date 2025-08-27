@@ -1,3 +1,3 @@
-#!/bin/bash
-set -e
-exec celery -A app.tasks.celery_worker.celery beat --loglevel=info
+#!/bin/sh
+set -eu
+exec celery -A app.tasks.celery_worker.celery beat -l info
