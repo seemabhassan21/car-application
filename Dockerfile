@@ -11,7 +11,8 @@ RUN apt-get update && \
         build-essential \
         gcc \
         curl \
-        netcat-openbsd && \
+        netcat-openbsd \
+        bash && \  
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -25,4 +26,4 @@ RUN chmod +x /app/start.sh /app/celery_worker.sh /app/celery_beat.sh
 
 EXPOSE 8000
 
-CMD ["sh", "/app/start.sh"]
+CMD ["/app/start.sh"]
