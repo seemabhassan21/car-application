@@ -1,7 +1,8 @@
 #!/bin/sh
-set -e 
-[ ! -d migrations ] && flask db init
-flask db migrate -m "auto migration" || true
-flask db upgrade
+set -e
 
-exec gunicorn -b 0.0.0.0:5000 run:app
+until nc -z "$DB_HOST" "$DB_PORT"; do sleep 2; done
+
+alembic upgrade head
+
+exec uvicorn main:app --host 0.0.0.0 --port 8000
