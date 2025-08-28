@@ -8,7 +8,7 @@ from app.core.security import security
 from app.models.user import User
 from .user_schema import UserRegisterSchema, TokenSchema
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter()
 
 
 def generate_tokens(user_id: str) -> dict:

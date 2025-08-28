@@ -1,3 +1,3 @@
-from .sync_cars import sync_all_cars
+from .sync_cars import sync_cars
 
-__all__ = ['sync_all_cars']
+__all__ = ['sync_cars']

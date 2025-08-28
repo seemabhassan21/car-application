@@ -1,8 +1,7 @@
-from .auth_routes import router
-from .user_schema import UserRegisterSchema, TokenSchema
+from fastapi import APIRouter
+from . import auth_routes
 
-__all__ = [
-    'router',
-    'UserRegisterSchema',
-    'TokenSchema'
-]
+router = APIRouter(prefix="/auth", tags=["auth"])
+router.include_router(auth_routes.router)
+
+__all__ = ['router']

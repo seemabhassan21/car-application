@@ -1,12 +1,17 @@
 import os
 import logging
 import asyncio
+import random
+import string
 import httpx
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from app.models.cars import Make, CarModel, Car
 from app.tasks.celery_worker import celery
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("ASYNC_DATABASE_URL")
 if not DATABASE_URL:
@@ -15,17 +20,41 @@ if not DATABASE_URL:
 engine = create_async_engine(DATABASE_URL, future=True, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
-
 EXTERNAL_API_URL = "https://parseapi.back4app.com/classes/Car_Model_List?limit=10000"
+
+
+def run_async(async_func):
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(async_func())
+            loop.close()
+            return result
+        else:
+            return loop.run_until_complete(async_func())
+    except RuntimeError:
+        return asyncio.run(async_func())
+
+
+def generate_vin() -> str:
+    allowed_chars = string.ascii_uppercase.replace("I", "").replace("O", "").replace("Q", "") + string.digits
+    return "".join(random.choice(allowed_chars) for _ in range(17))
+
+
+async def generate_unique_vin(session) -> str:
+    while True:
+        vin = generate_vin()
+        result = await session.execute(select(Car).where(Car.vin == vin))
+        if result.scalar_one_or_none() is None:
+            return vin
 
 
 @celery.task(name="app.tasks.sync_cars.sync_cars")
 def sync_cars() -> None:
-    """Celery task entrypoint for syncing cars from external API."""
     try:
-        asyncio.run(sync_all_cars_async())
+        run_async(sync_all_cars_async)
         logger.info("Car sync completed successfully.")
     except Exception as e:
         logger.exception("Car sync failed: %s", e)
@@ -33,7 +62,6 @@ def sync_cars() -> None:
 
 
 async def sync_all_cars_async() -> None:
-    """Fetch and sync Makes, CarModels, and Cars asynchronously."""
     api_id = os.getenv("CAR_API_ID")
     api_key = os.getenv("CAR_MASTER_KEY")
     if not api_id or not api_key:
@@ -88,7 +116,8 @@ async def sync_all_cars_async() -> None:
                     await session.flush()
                     new_models += 1
 
-                car = Car(car_model_id=car_model.id)
+                vin = await generate_unique_vin(session)
+                car = Car(car_model_id=car_model.id, vin=vin)
                 session.add(car)
                 new_cars += 1
 
@@ -97,7 +126,6 @@ async def sync_all_cars_async() -> None:
                 "Sync completed. Added: %d makes, %d models, %d cars",
                 new_makes, new_models, new_cars,
             )
-
         except SQLAlchemyError as db_err:
             await session.rollback()
             logger.exception("Database error during sync: %s", db_err)
