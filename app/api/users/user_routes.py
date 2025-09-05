@@ -1,4 +1,3 @@
-# app/api/users/user_routes.py
 from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncSession
 from datetime import timedelta

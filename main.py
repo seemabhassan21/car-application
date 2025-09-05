@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.api import router as api_router
-from app.core.database import close_driver  # import shutdown hook
+from app.core.database import close_driver
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -9,6 +10,7 @@ async def lifespan(app: FastAPI):
     await close_driver()
 
 app = FastAPI(title="Car API with Neo4j", lifespan=lifespan)
+
 
 @app.get("/")
 async def root():

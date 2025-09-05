@@ -14,7 +14,7 @@ celerybeat-schedule-wal
 # Test reports
 .pytest_cache/
 .coverage
-
+dump.rdb
 # IDE files
 .idea/
 .vscode/

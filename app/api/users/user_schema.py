@@ -1,8 +1,6 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
 
 
-# Input for registration
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
