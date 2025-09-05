@@ -1,34 +1,14 @@
-# Bytecode & cache
-__pycache__/
+.git
+.venv
+__pycache__
 *.pyc
 *.pyo
 *.pyd
-*.py[cod]
-
-# Virtual environments
-.venv/
-env/
-venv/
-ENV/
-
-# Environment variables
+.pytest_cache
 .env
-
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Git files
-.git/
-.gitignore
-
-# IDE files
-.vscode/
-
-
-# Temporary files
-*.tmp
-*.temp
+celerybeat-schedule
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+docker-compose.yml
+Dockerfile
+README.md

@@ -7,14 +7,12 @@ services:
     env_file:
       - .env
     environment:
-      DB_HOST: db
+      NEO4J_HOST: neo4j
     ports:
       - "8000:8000"
-    volumes:
-      - ./migrations:/app/migrations
     command: /app/start.sh 
     depends_on:
-      db:
+      neo4j:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -34,10 +32,10 @@ services:
     env_file:
       - .env
     environment:
-      DB_HOST: db
-    command: /app/celery_worker.sh 
+      NEO4J_HOST: neo4j
+    command: celery -A app.tasks.celery_worker.celery worker --loglevel=info
     depends_on:
-      db:
+      neo4j:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -56,34 +54,37 @@ services:
     env_file:
       - .env
     environment:
-      DB_HOST: db
-    command: /app/celery_beat.sh 
+      NEO4J_HOST: neo4j
+    command: celery -A app.tasks.celery_worker.celery beat --loglevel=info
     depends_on:
-      db:
+      neo4j:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery beat' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
-  db:
-    image: mysql:8.0
-    container_name: carapp_db
+  neo4j:
+    image: neo4j:5
+    container_name: carapp_neo4j
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      NEO4J_AUTH: ${NEO4J_USER}/${NEO4J_PASSWORD}
     ports:
-      - "3306:3306"
+      - "7474:7474"
+      - "7687:7687"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - neo4j_data:/data
     restart: unless-stopped
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}", "-h", "localhost"]  
+      test: ["CMD-SHELL", "curl -f http://localhost:7474 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10 
@@ -107,7 +108,7 @@ services:
       - redis_data:/data
 
 volumes:
-  mysql_data:
+  neo4j_data:
     driver: local
   redis_data: 
     driver: local
@@ -115,4 +116,3 @@ volumes:
 networks:
   backend:
     driver: bridge
-    
