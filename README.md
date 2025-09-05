@@ -1,4 +1,4 @@
-# Car API
+# Car Application
 
 A FastAPI-based REST API for managing car registration data with a scalable architecture using a Neo4j graph database. The app supports secure JWT authentication, handles background tasks with Celery, and is fully containerized with Docker.
 
