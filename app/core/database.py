@@ -1,35 +1,17 @@
+from neo4j import AsyncGraphDatabase
 from typing import AsyncGenerator
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.ext.asyncio import (
-    AsyncSession, async_sessionmaker, create_async_engine
-)
+from app.core.config import settings
 
-from .config import settings
-
-Base = declarative_base()
-
-async_engine = create_async_engine(
-    settings.ASYNC_DATABASE_URL,
-    echo=False,
-    future=True,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-)
-
-AsyncSessionLocal = async_sessionmaker(
-    bind=async_engine,
-    expire_on_commit=False,
-    class_=AsyncSession,
+driver = AsyncGraphDatabase.driver(
+    settings.NEO4J_URI,
+    auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
 )
 
 
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+async def get_db() -> AsyncGenerator:
+    async with driver.session() as session:
+        yield session
+
+
+async def close_driver():
+    await driver.close()

@@ -1,3 +1,3 @@
-#!/bin/sh
-set -eu
-exec celery -A app.tasks.celery_worker worker -l info
+#!/bin/bash
+set -e
+exec celery -A app.task.celery_worker:celery_app worker --loglevel=info
