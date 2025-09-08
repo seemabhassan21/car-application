@@ -1,3 +1,4 @@
+# app/tasks/sync_cars.py
 import asyncio
 import httpx
 import logging
@@ -5,13 +6,24 @@ from app.task.celery_worker import celery_app
 from app.core.config import settings
 from app.repositories.car_repository import CarRepository
 from neo4j import AsyncGraphDatabase
+from typing import AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
 API_URL = "https://parseapi.back4app.com/classes/Car_Model_List?limit=10000"
 
+celery_driver = AsyncGraphDatabase.driver(
+    settings.NEO4J_URI,
+    auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
+)
 
-@celery_app.task(name="app.task.sync_cars.sync_cars")
+
+async def get_celery_db() -> AsyncGenerator:
+    async with celery_driver.session() as session:
+        yield session
+
+
+@celery_app.task(name="app.tasks.sync_cars.sync_cars")
 def sync_cars_task():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -20,24 +32,18 @@ def sync_cars_task():
 
 
 async def sync_cars_logic():
-    driver = None
+    headers = {
+        "X-Parse-Application-Id": settings.CAR_API_ID,
+        "X-Parse-Master-Key": settings.CAR_MASTER_KEY,
+    }
+
     try:
-        driver = AsyncGraphDatabase.driver(
-            settings.NEO4J_URI,
-            auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
-        )
-
-        headers = {
-            "X-Parse-Application-Id": settings.CAR_API_ID,
-            "X-Parse-Master-Key": settings.CAR_MASTER_KEY,
-        }
-
         async with httpx.AsyncClient() as client:
             resp = await client.get(API_URL, headers=headers)
             resp.raise_for_status()
             cars_data = resp.json().get("results", [])
 
-        async with driver.session() as session:
+        async for session in get_celery_db():
             repo = CarRepository(session)
             for car in cars_data:
                 make = car.get("Make")
@@ -46,7 +52,7 @@ async def sync_cars_logic():
                 vin = car.get("objectId")
 
                 if not all([make, model, year, vin]):
-                    logger.warning(f"Skipping car with incomplete data: {car}")
+                    logger.warning(f"Skipping incomplete car data: {car}")
                     continue
 
                 await repo.create_make(make)
@@ -56,7 +62,4 @@ async def sync_cars_logic():
         logger.info("Car sync completed: %d cars processed", len(cars_data))
 
     except Exception as e:
-        logger.error(f"An error occurred during car sync: {e}", exc_info=True)
-    finally:
-        if driver:
-            await driver.close()
+        logger.error(f"Error during car sync: {e}", exc_info=True)

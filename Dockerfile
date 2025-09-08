@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN chmod +x ./start.sh
+RUN chmod +x ./start.sh ./celery_worker.sh ./celery_beat.sh
 
 EXPOSE 8000
 

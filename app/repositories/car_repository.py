@@ -14,7 +14,7 @@ class CarRepository:
         MERGE (m:Make {name: $name})
         RETURN m {.*} AS make
         """
-        result = await self.session.run(query, name=name)
+        result = await self.session.run(query, name=name)  # type: ignore[arg-type]
         record = await result.single()
         return dict(record["make"]) if record else None
 
@@ -25,7 +25,7 @@ class CarRepository:
         MERGE (cm)-[:BELONGS_TO]->(m)
         RETURN cm {.*} AS model, m {.*} AS make
         """
-        result = await self.session.run(
+        result = await self.session.run(  # type: ignore[arg-type]
             query, model_name=model_name, make_name=make_name
         )
         record = await result.single()
@@ -40,7 +40,7 @@ class CarRepository:
         MERGE (c)-[:INSTANCE_OF]->(cm)
         RETURN c {.*} AS car, cm {.*} AS model, m {.*} AS make
         """
-        result = await self.session.run(
+        result = await self.session.run(  # type: ignore[arg-type]
             query,
             car_id=car_id,
             year=year,
@@ -61,7 +61,7 @@ class CarRepository:
         MATCH (c:Car {id: $car_id})-[:INSTANCE_OF]->(cm:CarModel)-[:BELONGS_TO]->(m:Make)
         RETURN c {.*} AS car, cm {.*} AS model, m {.*} AS make
         """
-        result = await self.session.run(query, car_id=car_id)
+        result = await self.session.run(query, car_id=car_id)  # type: ignore[arg-type]
         record = await result.single()
         if record:
             return {
@@ -77,7 +77,7 @@ class CarRepository:
         RETURN c {.*} AS car, cm {.*} AS model, m {.*} AS make
         LIMIT $limit
         """
-        result = await self.session.run(query, limit=limit)
+        result = await self.session.run(query, limit=limit)  # type: ignore[arg-type]
         records = [r async for r in result]
         return [
             {
@@ -131,7 +131,7 @@ class CarRepository:
         )
         query = "\n".join(query_parts)
 
-        result = await self.session.run(query, params)
+        result = await self.session.run(query, params)  # type: ignore[arg-type]
         record = await result.single()
         if record:
             return {
@@ -159,7 +159,7 @@ class CarRepository:
             "model_name": car_data.model_name,
             "make_name": car_data.make_name,
         }
-        result = await self.session.run(query, params)
+        result = await self.session.run(query, params)  # type: ignore[arg-type]
         record = await result.single()
         if record:
             return {
@@ -175,6 +175,6 @@ class CarRepository:
         DETACH DELETE c
         RETURN $car_id AS car_id
         """
-        result = await self.session.run(query, car_id=car_id)
+        result = await self.session.run(query, car_id=car_id)  # type: ignore[arg-type]
         record = await result.single()
         return {"deleted": True, "car_id": record["car_id"]} if record else None

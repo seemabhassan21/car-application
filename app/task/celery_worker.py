@@ -2,7 +2,6 @@ from celery import Celery
 from celery.schedules import crontab
 from app.core.config import settings
 
-# Initialize Celery
 celery_app = Celery(
     "car_app",
     broker=settings.CELERY_BROKER_URL,

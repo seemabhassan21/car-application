@@ -1,11 +1,12 @@
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncSession
-from datetime import timedelta
 
 from app.core.database import get_db
 from app.repositories.user_repository import UserRepository
-from app.api.users.user_schema import UserCreate, UserLogin, UserRead
+from app.api.users.user_schema import UserCreate, UserLogin, UserRead, TokenResponse
 from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -26,7 +27,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     return UserRepository.to_public_dict(created)
 
 
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     repo = UserRepository(db)
 
@@ -37,9 +38,11 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     if not verify_password(user.password, db_user["password_hash"]):
         raise HTTPException(status_code=400, detail="Invalid credentials")
 
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
     access_token = create_access_token(
-        data={"sub": db_user["id"]}, expires_delta=access_token_expires
+        data={"sub": db_user["id"]},
+        expires_delta=access_token_expires,
     )
 
     return {"access_token": access_token, "token_type": "bearer"}

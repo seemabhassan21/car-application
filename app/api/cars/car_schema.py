@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional
 
 
 class CarCreate(BaseModel):
@@ -19,23 +19,3 @@ class CarResponse(BaseModel):
     year: int
     make: str
     model: str
-
-    class Config:
-        from_attributes = True
-
-    @classmethod
-    def from_repo(cls, data: dict):
-        return cls(
-            id=data["car"]["id"],
-            year=data["car"]["year"],
-            make=data["make"]["name"],
-            model=data["model"]["name"],
-        )
-
-
-class CarListResponse(BaseModel):
-    cars: List[CarResponse]
-
-    @classmethod
-    def from_repo_list(cls, records: list):
-        return cls(cars=[CarResponse.from_repo(r) for r in records])

@@ -34,9 +34,17 @@ class UserRepository:
         record = await result.single()
         return dict(record["user"]) if record else None
 
+    async def get_user_by_id(self, user_id: str) -> dict[str, Any] | None:
+        query = """
+        MATCH (u:User {id: $user_id})
+        RETURN u {.*} AS user
+        """
+        result = await self.session.run(query, user_id=user_id)
+        record = await result.single()
+        return dict(record["user"]) if record else None
+
     @staticmethod
     def to_public_dict(user: dict[str, Any] | None) -> dict[str, Any] | None:
-        """Strip sensitive fields (like password_hash) for safe API responses."""
         if not user:
             return None
         return {
