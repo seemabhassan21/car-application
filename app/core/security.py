@@ -1,66 +1,65 @@
-
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
-
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from datetime import datetime, timedelta
+from typing import Optional
+from jose import JWTError, jwt
 from passlib.context import CryptContext
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from neo4j import AsyncSession
 
-from .config import settings
-
-ALGORITHM = "HS256"
+from app.core.config import settings
+from app.core.database import get_db
+from app.repositories.user_repository import UserRepository
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
 
-class Security:
-
-    @staticmethod
-    def hash_password(password: str) -> str:
-        return pwd_context.hash(password)
-
-    @staticmethod
-    def verify_password(plain: str, hashed: str) -> bool:
-        return pwd_context.verify(plain, hashed)
-
-    @staticmethod
-    def create_access_token(subject: str, minutes: Optional[int] = None) -> str:
-        expires = datetime.now(timezone.utc) + timedelta(
-            minutes=minutes or settings.access_token_expire_minutes
-        )
-        payload = {"sub": subject, "exp": expires, "type": "access"}
-        return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
-
-    @staticmethod
-    def create_refresh_token(subject: str, minutes: Optional[int] = None) -> str:
-        expires = datetime.now(timezone.utc) + timedelta(
-            minutes=minutes or settings.refresh_token_expire_minutes
-        )
-        payload = {"sub": subject, "exp": expires, "type": "refresh"}
-        return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
-
-    @staticmethod
-    def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
-        try:
-            return jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
-        except JWTError:
-            return None
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
 
-security = Security()
-
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/login"
-)
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
-    payload = security.decode_access_token(token)
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return encoded_jwt
+
+
+def decode_access_token(token: str) -> Optional[dict]:
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except JWTError:
+        return None
+
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    payload = decode_access_token(token)
     if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return payload
+        raise credentials_exception
+
+    user_id = payload.get("sub")
+    if not isinstance(user_id, str):
+        raise credentials_exception
+
+    repo = UserRepository(db)
+    user = await repo.get_user_by_id(user_id)
+    if not user:
+        raise credentials_exception
+
+    return user

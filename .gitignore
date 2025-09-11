@@ -1,44 +1,20 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-*.egg
-
-# Logs
-*.log
-
-# Celery
-celerybeat-schedule
-*.pid
-
-# Database
-*.db
-
 # Environments
-.env
 .venv/
-venv/
-ENV/
-env/
-env.bak/
-venv.bak/
+.env
 
-# Docker
-docker-compose.override.yml
-*.dockerignore
+# Python cache
+__pycache__/
+*.pyc
 
-# VS Code
+# Celery files
+celerybeat-schedule
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+
+# Test reports
+.pytest_cache/
+.coverage
+dump.rdb
+# IDE files
+.idea/
 .vscode/
-*.code-workspace
-
-# MacOS / Windows
-.DS_Store
-Thumbs.db

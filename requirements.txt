@@ -1,16 +1,22 @@
+# Core
 fastapi
-uvicorn[standard]
-sqlalchemy>=2.0
-aiomysql
-aiosqlite
-pydantic>=2.0
-pydantic-settings
+uvicorn
+
+# Database
+neo4j
+
+# Security
 python-jose[cryptography]
-passlib[bcrypt]==1.7.4
+passlib==1.7.4
 bcrypt==4.0.1
-email-validator
-python-multipart
-alembic==1.13.1
+
+# Celery & Redis
+celery
+redis
+
+# HTTP Client
 httpx
-requests
-celery[redis]
+
+# Settings
+pydantic-settings
+pydantic[email]

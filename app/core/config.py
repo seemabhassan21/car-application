@@ -1,20 +1,20 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings 
 
 
 class Settings(BaseSettings):
-    secret_key: str
-    jwt_secret_key: str
-    access_token_expire_minutes: int = 60
-    refresh_token_expire_minutes: int = 60 * 24 * 7
+    SECRET_KEY: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    JWT_ALGORITHM: str = "HS256"
 
-    ASYNC_DATABASE_URL: str
+    NEO4J_URI: str
+    NEO4J_USER: str
+    NEO4J_PASSWORD: str
 
     CELERY_BROKER_URL: str
     CELERY_RESULT_BACKEND: str
 
-    default_page: int = 1
-    default_per_page: int = 10
-    max_per_page: int = 100
+    CAR_API_ID: str
+    CAR_MASTER_KEY: str
 
     class Config:
         env_file = ".env"
