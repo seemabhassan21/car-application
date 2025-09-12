@@ -16,7 +16,7 @@ celery_app.conf.update(
     accept_content=["json"],
 )
 
-from app.task.sync_cars import sync_cars_task
+celery_app.autodiscover_tasks(["app.task"])
 
 celery_app.conf.beat_schedule = {
     "sync-cars-every-5-min": {

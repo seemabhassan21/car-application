@@ -3,7 +3,7 @@ fastapi
 uvicorn
 
 # Database
-neo4j
+neo4j>=5.10.0
 
 # Security
 python-jose[cryptography]
@@ -20,3 +20,6 @@ httpx
 # Settings
 pydantic-settings
 pydantic[email]
+
+anthropic
+python-multipart
