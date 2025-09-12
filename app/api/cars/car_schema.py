@@ -3,15 +3,21 @@ from typing import Optional
 
 
 class CarCreate(BaseModel):
-    year: int = Field(..., ge=2000, description="Manufacturing year")
-    make_name: str = Field(..., description="Car brand e.g., Audi")
-    model_name: str = Field(..., description="Car model e.g., Q3")
+    year: int = Field(..., ge=2000)
+    make: str = Field(..., min_length=3, max_length=20)
+    model: str = Field(..., min_length=3, max_length=20)
 
 
 class CarUpdate(BaseModel):
-    year: Optional[int] = Field(None, ge=2000, description="Updated year")
-    make_name: Optional[str] = Field(None, description="Updated brand")
-    model_name: Optional[str] = Field(None, description="Updated model")
+    year: Optional[int] = Field(None, ge=2000)
+    make: Optional[str] = Field(None, min_length=3, max_length=20)
+    model: Optional[str] = Field(None, min_length=3, max_length=20)
+
+    @classmethod
+    def validate(cls, values):
+        if not any(values.values()):
+            raise ValueError("Provide at least one field")
+        return values
 
 
 class CarResponse(BaseModel):

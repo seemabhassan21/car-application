@@ -23,13 +23,9 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
-    expire = datetime.utcnow() + (
-        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
-    return encoded_jwt
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode = {**data, "exp": expire}
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
 def decode_access_token(token: str) -> Optional[dict]:
@@ -39,27 +35,13 @@ def decode_access_token(token: str) -> Optional[dict]:
         return None
 
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db)
-) -> dict:
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> dict:
     payload = decode_access_token(token)
-    if not payload:
-        raise credentials_exception
+    if not payload or not isinstance(payload.get("sub"), str):
+        raise HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
 
-    user_id = payload.get("sub")
-    if not isinstance(user_id, str):
-        raise credentials_exception
-
-    repo = UserRepository(db)
-    user = await repo.get_user_by_id(user_id)
+    user = await UserRepository(db).get_user_by_id(payload["sub"])
     if not user:
-        raise credentials_exception
+        raise HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
 
     return user

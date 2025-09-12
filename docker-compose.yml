@@ -3,6 +3,7 @@ version: "3.9"
 services:
   web:
     build: .
+    image: carapp:latest
     container_name: carapp_web
     env_file:
       - .env
@@ -15,14 +16,14 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
   worker:
-    build: .
+    image: carapp:latest
     container_name: carapp_worker
     env_file:
       - .env
@@ -38,9 +39,11 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    volumes:
+      - app_data:/app
 
   beat:
-    build: .
+    image: carapp:latest
     container_name: carapp_beat
     env_file:
       - .env
@@ -51,6 +54,9 @@ services:
     restart: unless-stopped
     networks:
       - backend
+    volumes:
+      - beat_schedule:/app/celerybeat
+      - app_data:/app
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'celery beat' || exit 1"]
       interval: 30s
@@ -76,6 +82,10 @@ services:
 
 volumes:
   redis_data:
+    driver: local
+  beat_schedule:
+    driver: local
+  app_data:
     driver: local
 
 networks:
